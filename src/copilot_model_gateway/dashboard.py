@@ -85,6 +85,21 @@ def _is_port_open(host: str, port: int, timeout: float = 0.3) -> bool:
         return False
 
 
+def _wait_for_port_state(
+    host: str,
+    port: int,
+    *,
+    expected_open: bool,
+    timeout: float,
+) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _is_port_open(host, port) is expected_open:
+            return True
+        time.sleep(0.2)
+    return _is_port_open(host, port) is expected_open
+
+
 def _tail_text(path: Path, max_lines: int) -> str:
     if not path.exists():
         return ""
@@ -93,6 +108,50 @@ def _tail_text(path: Path, max_lines: int) -> str:
             return "".join(deque(handle, maxlen=max_lines))
     except OSError as exc:
         return f"Unable to read log: {exc}\n"
+
+
+def _start_managed_gateway(
+    state: DashboardState,
+    config: Any,
+    env: dict[str, str],
+) -> dict[str, Any]:
+    result = render_runtime_config(config, env, state.runtime_path)
+    executable = find_litellm_executable(state.root)
+    if not executable:
+        raise HTTPException(
+            status_code=400,
+            detail="LiteLLM executable not found. Run gateway.bat setup.",
+        )
+
+    process = start_litellm_background(
+        executable,
+        result.path,
+        config.host,
+        config.port,
+        state.log_path,
+        state.pid_path,
+    )
+
+    deadline = time.time() + 25
+    while time.time() < deadline:
+        if _is_port_open(config.host, config.port):
+            return {
+                "ok": True,
+                "pid": process.pid,
+                "warnings": list(result.warnings),
+                "deployments": len(result.deployments),
+            }
+        if process.poll() is not None:
+            break
+        time.sleep(0.3)
+
+    log_tail = _tail_text(state.log_path, 35).strip()
+    detail = "Gateway did not become ready."
+    if process.poll() is not None:
+        detail += f" LiteLLM exited with code {process.returncode}."
+    if log_tail:
+        detail += f"\n\nLast gateway log lines:\n{log_tail}"
+    raise HTTPException(status_code=500, detail=detail)
 
 
 def _build_status(state: DashboardState) -> dict[str, Any]:
@@ -167,15 +226,18 @@ def _build_status(state: DashboardState) -> dict[str, Any]:
         ]
         alias_counts = Counter(item.alias for item in deployments)
         result["aliases"] = [
-            {"name": alias, "deployments": count} for alias, count in sorted(alias_counts.items())
+            {"name": alias, "deployments": count, "loaded": None}
+            for alias, count in sorted(alias_counts.items())
         ]
 
         if result["gateway"]["online"]:
             api_key = env.get(config.master_key_env) if config.require_auth else None
             try:
-                result["gateway"]["visible_models"] = list_models(
-                    result["gateway"]["url"], api_key
-                )
+                visible_models = list_models(result["gateway"]["url"], api_key)
+                result["gateway"]["visible_models"] = visible_models
+                visible_model_set = set(visible_models)
+                for alias in result["aliases"]:
+                    alias["loaded"] = alias["name"] in visible_model_set
             except RuntimeError as exc:
                 result["gateway"]["probe_error"] = str(exc)
     except (ConfigurationError, FileNotFoundError, ValueError) as exc:
@@ -252,33 +314,55 @@ def create_dashboard_app(root: Path) -> FastAPI:
             try:
                 config, env = state.load()
                 if _is_port_open(config.host, config.port):
-                    return {"ok": True, "already_running": True}
-                result = render_runtime_config(config, env, state.runtime_path)
-                executable = find_litellm_executable(state.root)
-                if not executable:
-                    raise ValueError("LiteLLM executable not found. Run gateway.bat setup.")
-                process = start_litellm_background(
-                    executable,
-                    result.path,
-                    config.host,
-                    config.port,
-                    state.log_path,
-                    state.pid_path,
-                )
+                    managed = gateway_process_status(state.pid_path)
+                    return {
+                        "ok": True,
+                        "already_running": True,
+                        "managed": bool(managed.get("running")),
+                    }
+                return _start_managed_gateway(state, config, env)
             except (ConfigurationError, FileNotFoundError, ValueError, OSError) as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        deadline = time.time() + 12
-        while time.time() < deadline:
-            if _is_port_open(config.host, config.port):
-                return {"ok": True, "pid": process.pid}
-            if process.poll() is not None:
-                break
-            time.sleep(0.3)
-        raise HTTPException(
-            status_code=500,
-            detail="Gateway did not become ready. Check the dashboard log panel.",
-        )
+    @app.post("/api/gateway/restart")
+    def restart_gateway() -> dict[str, Any]:
+        with state.lock:
+            try:
+                config, env = state.load()
+                managed = gateway_process_status(state.pid_path)
+                port_open = _is_port_open(config.host, config.port)
+
+                if port_open and not managed.get("running"):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            f"Port {config.port} is used by a process not started by this dashboard. "
+                            "Stop that process before restarting the gateway."
+                        ),
+                    )
+
+                if managed.get("running"):
+                    if not stop_litellm_background(state.pid_path):
+                        raise HTTPException(
+                            status_code=500,
+                            detail="Could not stop the managed LiteLLM process.",
+                        )
+                    if not _wait_for_port_state(
+                        config.host,
+                        config.port,
+                        expected_open=False,
+                        timeout=10,
+                    ):
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Port {config.port} did not close after stopping LiteLLM.",
+                        )
+
+                return _start_managed_gateway(state, config, env)
+            except HTTPException:
+                raise
+            except (ConfigurationError, FileNotFoundError, ValueError, OSError) as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/gateway/stop")
     def stop_gateway() -> dict[str, Any]:

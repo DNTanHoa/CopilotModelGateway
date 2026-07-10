@@ -1,52 +1,30 @@
 # Copilot Model Gateway
 
-A secure local model gateway for connecting **GitHub Copilot / Bring Your Own Model** clients to your own AI providers through LiteLLM.
+A secure local model gateway for connecting **GitHub Copilot / Bring Your Own Model** clients to your own AI providers through LiteLLM. It includes a localhost-only web dashboard for managing provider keys, runtime state, model tests and Visual Studio connection values.
 
-The project is intentionally provider-neutral. It generates a temporary LiteLLM configuration at runtime from a clean gateway configuration and secrets stored in `.env`.
+## What it provides
 
-## Why this project exists
-
-Many BYOK examples work, but become difficult to maintain when you add more providers or multiple API keys. Copilot Model Gateway separates concerns:
-
-- `config/gateway.yaml` describes providers, deployments and public model aliases.
-- `.env` contains secrets only.
-- `.runtime/litellm.yaml` is generated automatically and is never committed.
-- Repeating the same model alias across profiles creates multiple LiteLLM deployments for routing/load balancing.
-- Missing API keys are skipped instead of breaking unrelated providers.
-- Authentication is enabled by default.
-- Binding outside loopback without authentication is blocked.
+- Multi-provider routing for DeepSeek, Gemini, OpenAI and OpenAI-compatible endpoints.
+- Multiple independent keys behind the same public model alias.
+- Secrets stored only in local `.env`; generated runtime config stays under `.runtime/`.
+- Gateway authentication enabled by default.
+- Local dashboard bound only to loopback.
+- Start/stop controls, live status, model tests and gateway logs.
+- CLI commands for automation and troubleshooting.
 
 ## Architecture
 
 ```text
 Visual Studio / OpenAI-compatible client
                 |
-                |  http://127.0.0.1:4000/v1
+                | http://127.0.0.1:4000/v1
                 v
-       Copilot Model Gateway
-       (runtime config generator)
+        LiteLLM model gateway
+         /        |        \
+   DeepSeek    Gemini    OpenAI/custom
+                ^
                 |
-                v
-            LiteLLM Proxy
-       /          |           \
- DeepSeek      Gemini      OpenAI/custom
-```
-
-## Repository layout
-
-```text
-config/
-  gateway.example.yaml   Configuration template committed to Git
-  gateway.yaml           Your active configuration, ignored by Git
-src/copilot_model_gateway/
-  cli.py                  CLI commands
-  settings.py             Configuration and .env loader
-  generator.py            Safe LiteLLM runtime config generator
-  process.py              LiteLLM process discovery/startup
-  client.py               Gateway test client
-scripts/
-  setup.ps1               Windows setup helper
-  publish-to-github.ps1   One-command GitHub publishing helper
+Local dashboard http://127.0.0.1:4100
 ```
 
 ## Requirements
@@ -55,64 +33,69 @@ scripts/
 - Python 3.10+
 - Visual Studio with a Bring Your Own Model/OpenAI-compatible endpoint option
 
-## Quick start on Windows
+## Quick start
 
 ```powershell
-# First-time setup
-.\gateway.ps1 setup
+cd D:\projects\model-gateway\CopilotModelGateway
 
-# Edit secrets and provider configuration
-notepad .env
-notepad config\gateway.yaml
+# Install/update dependencies and initialize local files
+.\gateway.bat setup
 
-# Validate everything before starting
-.\gateway.ps1 doctor
-
-# Start the local gateway
-.\gateway.ps1 start
+# Open the web dashboard
+.\gateway.bat ui
 ```
 
-Or double-click/use the batch wrapper:
+The browser opens automatically at:
 
-```bat
-gateway.bat setup
-gateway.bat doctor
-gateway.bat start
+```text
+http://127.0.0.1:4100
 ```
 
-The default endpoint is:
+From the dashboard:
+
+1. Enter at least one provider API key.
+2. Click **Start gateway**.
+3. Copy the endpoint and gateway key.
+4. Add one of the active model aliases to Visual Studio BYOM.
+
+The model API remains at:
 
 ```text
 http://127.0.0.1:4000/v1
 ```
 
-Use the generated `GATEWAY_MASTER_KEY` from `.env` as the API key in the client.
+## Dashboard features
 
-## Visual Studio BYOM values
+- Provider cards show which API keys are configured or missing.
+- Existing secrets are never displayed in provider fields.
+- **Copy gateway key** reads the local master key only when clicked.
+- **Render config** regenerates `.runtime/litellm.yaml`.
+- **Start gateway** launches LiteLLM in the background and writes logs to `.runtime/gateway.log`.
+- **Stop gateway** stops only the process started by this dashboard.
+- Active aliases can be tested individually.
+- The dashboard refuses non-loopback bind addresses and validates the HTTP Host header.
 
-For each alias printed by:
+Use a different dashboard port when required:
 
 ```powershell
-.\gateway.ps1 models
+.\gateway.bat ui --port 4200
 ```
 
-add a model in Visual Studio using values similar to:
+Do not use port `4000` for the dashboard because that port belongs to the LiteLLM gateway.
+
+## Visual Studio BYOM values
 
 | Field | Value |
 |---|---|
 | Display name | Any friendly name |
-| Model ID | The alias from `gateway.ps1 models` |
+| Model ID | An active alias shown on the dashboard |
 | Resource endpoint | `http://127.0.0.1:4000` |
-| API key | `GATEWAY_MASTER_KEY` from `.env` |
+| API key | `GATEWAY_MASTER_KEY`, available through **Copy gateway key** |
 | Tool calling | Enable only when the selected provider/model supports it |
 
-Some Visual Studio builds may label this feature **Bring Your Own Model**, **BYOM**, or **OpenAI-compatible model**.
+## Configuration
 
-## Configure providers
-
-The committed template uses model IDs verified against provider documentation on July 10, 2026. Provider catalogs change, so treat them as editable defaults and run `doctor`/`test` after upgrades.
-
-After setup, edit `config/gateway.yaml`:
+`config/gateway.yaml` describes profiles and public aliases. `.env` contains secrets only.
 
 ```yaml
 profiles:
@@ -126,81 +109,43 @@ profiles:
         model: deepseek/deepseek-v4-flash
 ```
 
-Then put the secret in `.env`:
-
 ```ini
 DEEPSEEK_API_KEY_1=sk-...
 ```
 
-### Multiple keys for one model
-
-Add another profile using the **same alias** but a different environment variable:
-
-```yaml
-  - id: deepseek-secondary
-    label: DeepSeek secondary key
-    enabled: true
-    api_key_env: DEEPSEEK_API_KEY_2
-    api_base: https://api.deepseek.com
-    models:
-      - alias: deepseek-v4-flash
-        model: deepseek/deepseek-v4-flash
-```
-
-This produces two deployments behind the public model ID `deepseek-v4-flash`. LiteLLM can route requests between them. Unlike scripts that repeatedly assign one environment variable, the keys do not overwrite each other.
+To use two keys for the same public model, add a second profile with a different `api_key_env` and repeat the same alias. LiteLLM sees them as separate deployments and can route between them.
 
 ## Commands
 
 ```powershell
-.\gateway.ps1 setup                  # Create venv, install packages, initialize config
-.\gateway.ps1 init                   # Create missing .env/config files only
-.\gateway.ps1 doctor                 # Validate configuration and security
-.\gateway.ps1 models                 # Show active public aliases and deployments
-.\gateway.ps1 render                 # Generate .runtime/litellm.yaml
-.\gateway.ps1 start                  # Start LiteLLM proxy
-.\gateway.ps1 test                   # Test every visible model
-.\gateway.ps1 test --model deepseek-v4-flash
-```
-
-Override host and port at startup:
-
-```powershell
-.\gateway.ps1 start --host 127.0.0.1 --port 4100
+.\gateway.bat setup                  # Install/update dependencies and initialize files
+.\gateway.bat init                   # Create missing .env/config files
+.\gateway.bat ui                     # Open the local dashboard
+.\gateway.bat doctor                 # Validate configuration and runtime
+.\gateway.bat models                 # Show active aliases and deployments
+.\gateway.bat render                 # Generate .runtime/litellm.yaml
+.\gateway.bat start                  # Run LiteLLM in the foreground
+.\gateway.bat test                   # Test all visible models
+.\gateway.bat test --model MODEL_ID  # Test one alias
 ```
 
 ## Security
 
-- `.env`, `config/gateway.yaml`, and `.runtime/` are ignored by Git.
-- Proxy authentication is enabled by default.
-- The CLI refuses a non-loopback host when authentication is disabled.
-- Generated runtime configuration can contain provider keys, so it is stored under `.runtime/` with restricted file permissions where supported.
-- Do not expose the gateway to a LAN or the internet without TLS, firewall rules, authentication, and an explicit threat review.
-- Source code/prompts sent through the gateway still reach the provider selected for that model.
+- `.env`, `config/gateway.yaml`, `.runtime/` and logs are ignored by Git.
+- The dashboard binds to loopback only and has trusted-host validation.
+- Provider secrets are accepted only for environment variable names declared in the gateway config.
+- The gateway API uses its own master key and is authenticated by default.
+- Generated runtime configuration contains provider keys and must remain local.
+- Prompts and source code still reach whichever external provider serves the selected model.
+- Do not expose either port to LAN or internet without TLS, firewall rules and an explicit security review.
 
-## Run tests
+## Development
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m ruff check src tests
+.\.venv\Scripts\python.exe -m compileall -q src
 ```
-
-## Publish this repository
-
-The included publisher creates a private `DNTanHoa/CopilotModelGateway` repository and pushes the current folder. The easiest option is to double-click:
-
-```text
-publish.bat
-```
-
-Or run the configurable PowerShell command:
-
-```powershell
-.\scripts\publish-to-github.ps1 `
-  -Owner DNTanHoa `
-  -Repository CopilotModelGateway `
-  -Visibility private
-```
-
-It uses GitHub CLI when available. Otherwise it securely prompts for a GitHub Personal Access Token with repository creation/push permission.
 
 ## License
 

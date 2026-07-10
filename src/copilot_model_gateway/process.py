@@ -35,6 +35,19 @@ def _command(executable: Path, runtime_config: Path, host: str, port: int) -> li
     ]
 
 
+def _child_environment() -> dict[str, str]:
+    """Return a UTF-8 environment for LiteLLM child processes.
+
+    Windows commonly inherits a legacy cp1252 console encoding. LiteLLM prints a
+    Unicode banner during startup, which can otherwise raise UnicodeEncodeError
+    when stdout is redirected to the dashboard log file.
+    """
+    environment = os.environ.copy()
+    environment["PYTHONUTF8"] = "1"
+    environment["PYTHONIOENCODING"] = "utf-8"
+    return environment
+
+
 def start_litellm(
     executable: Path,
     runtime_config: Path,
@@ -45,7 +58,7 @@ def start_litellm(
     print(f"Starting gateway at http://{host}:{port}")
     print("Press Ctrl+C to stop.")
     try:
-        return subprocess.call(command)
+        return subprocess.call(command, env=_child_environment())
     except KeyboardInterrupt:
         print("\nGateway stopped.")
         return 130
@@ -64,7 +77,7 @@ def start_litellm_background(
 ) -> subprocess.Popen[Any]:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     command = _command(executable, runtime_config, host, port)
-    log_handle = log_path.open("a", encoding="utf-8")
+    log_handle = log_path.open("a", encoding="utf-8", errors="replace")
     creationflags = 0
     popen_kwargs: dict[str, Any] = {}
     if os.name == "nt":
@@ -78,6 +91,7 @@ def start_litellm_background(
             stdout=log_handle,
             stderr=subprocess.STDOUT,
             creationflags=creationflags,
+            env=_child_environment(),
             **popen_kwargs,
         )
     finally:

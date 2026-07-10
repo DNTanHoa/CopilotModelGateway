@@ -1,0 +1,44 @@
+.alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.alert-text {
+  min-width: 0;
+  flex: 1;
+  line-height: 1.45;
+}
+
+.alert-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -3px -4px -3px 0;
+  padding: 0;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: inherit;
+  background: transparent;
+  font: 400 16px/1 "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease;
+}
+
+.alert-close:hover {
+  border-color: rgba(0, 0, 0, .08);
+  background: rgba(0, 0, 0, .04);
+}
+
+.alert-close:active {
+  background: rgba(0, 0, 0, .07);
+}
+
+.alert-close:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, .32);
+  outline-offset: 1px;
+}

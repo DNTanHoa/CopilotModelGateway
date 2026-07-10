@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "copilot-model-gateway"
+version = "0.1.0"
+description = "Secure local multi-provider model gateway for GitHub Copilot BYOM clients"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "DNTanHoa" }]
+dependencies = [
+  "PyYAML>=6.0.1",
+  "litellm[proxy]>=1.90.0,<2",
+  "prisma>=0.11.0,<1.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.9"
+]
+
+[project.scripts]
+copilot-model-gateway = "copilot_model_gateway.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

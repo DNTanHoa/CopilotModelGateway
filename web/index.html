@@ -9,13 +9,14 @@
 <body>
   <div class="shell">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">LOCAL AI ROUTER</p>
-        <h1>Copilot Model Gateway</h1>
-        <p class="subtitle">Manage provider keys, model deployments, gateway health and Visual Studio BYOM settings.</p>
+      <div class="brand-block">
+        <div class="title-line">
+          <h1>Copilot Model Gateway</h1>
+          <span id="gatewayBadge" class="badge neutral">Checking…</span>
+        </div>
+        <p class="subtitle">Local model routing for GitHub Copilot and OpenAI-compatible clients.</p>
       </div>
       <div class="header-actions">
-        <span id="gatewayBadge" class="badge neutral">Checking…</span>
         <button id="refreshButton" class="button secondary">Refresh</button>
       </div>
     </header>
@@ -24,7 +25,7 @@
       <section id="alerts" class="alerts" aria-live="polite"></section>
 
       <section class="summary-grid">
-        <article class="card hero-card">
+        <article class="card endpoint-card">
           <div class="card-heading">
             <div>
               <p class="label">Gateway endpoint</p>
@@ -32,7 +33,7 @@
             </div>
             <span id="authBadge" class="badge neutral">Auth —</span>
           </div>
-          <div class="button-row">
+          <div class="button-row compact-actions">
             <button id="copyEndpointButton" class="button secondary">Copy endpoint</button>
             <button id="copyMasterKeyButton" class="button secondary">Copy gateway key</button>
             <button id="renderButton" class="button secondary">Render config</button>
@@ -42,13 +43,13 @@
         <article class="card metric-card">
           <p class="label">Public models</p>
           <strong id="modelCount">0</strong>
-          <span>aliases available to clients</span>
+          <span>client aliases</span>
         </article>
 
         <article class="card metric-card">
           <p class="label">Deployments</p>
           <strong id="deploymentCount">0</strong>
-          <span>provider routes configured</span>
+          <span>provider routes</span>
         </article>
 
         <article class="card metric-card">
@@ -60,7 +61,7 @@
 
       <section class="two-column">
         <article class="card">
-          <div class="card-heading">
+          <div class="section-heading">
             <div>
               <p class="label">Runtime</p>
               <h2>Gateway control</h2>
@@ -69,7 +70,7 @@
           <div class="control-panel">
             <div class="status-line"><span>Gateway API</span><strong id="apiStatus">Checking…</strong></div>
             <div class="status-line"><span>Managed process</span><strong id="processStatus">Unknown</strong></div>
-            <div class="button-row">
+            <div class="button-row control-actions">
               <button id="startButton" class="button primary">Start gateway</button>
               <button id="stopButton" class="button danger">Stop gateway</button>
             </div>
@@ -77,7 +78,7 @@
         </article>
 
         <article class="card">
-          <div class="card-heading">
+          <div class="section-heading">
             <div>
               <p class="label">Visual Studio</p>
               <h2>BYOM values</h2>
@@ -85,35 +86,47 @@
           </div>
           <dl class="kv-list">
             <div><dt>Resource endpoint</dt><dd id="vsEndpoint">—</dd></div>
-            <div><dt>API key</dt><dd>Use the generated gateway master key</dd></div>
-            <div><dt>Model ID</dt><dd>Select an alias listed below</dd></div>
+            <div><dt>API key</dt><dd>Gateway master key</dd></div>
+            <div><dt>Model ID</dt><dd>Use an active alias below</dd></div>
           </dl>
         </article>
       </section>
 
       <section class="card section-card">
-        <div class="card-heading">
+        <div class="section-heading">
           <div>
-            <p class="label">Secrets</p>
-            <h2>Provider API keys</h2>
-            <p class="muted">Keys are saved only to the local <code>.env</code> file. Existing values are never displayed.</p>
+            <p class="label">Providers</p>
+            <h2>API keys</h2>
+            <p class="muted">Secrets stay in the local <code>.env</code> file and are never displayed after saving.</p>
           </div>
         </div>
         <div id="profileGrid" class="profile-grid"></div>
       </section>
 
       <section class="card section-card">
-        <div class="card-heading">
+        <div class="section-heading">
           <div>
             <p class="label">Routing</p>
             <h2>Active model aliases</h2>
           </div>
         </div>
-        <div id="modelGrid" class="model-grid"></div>
+        <div class="table-wrap">
+          <table class="model-table">
+            <thead>
+              <tr>
+                <th>Alias</th>
+                <th>Deployments</th>
+                <th>Status</th>
+                <th class="action-column">Action</th>
+              </tr>
+            </thead>
+            <tbody id="modelGrid"></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="card section-card">
-        <div class="card-heading">
+        <div class="section-heading inline-heading">
           <div>
             <p class="label">Runtime output</p>
             <h2>Gateway log</h2>

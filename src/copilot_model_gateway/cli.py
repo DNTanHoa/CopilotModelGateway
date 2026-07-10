@@ -11,6 +11,7 @@ from pathlib import Path
 from .client import list_models, test_model
 from .dashboard import run_dashboard
 from .generator import build_litellm_config, render_runtime_config
+from .ollama_bridge import start_ollama_bridge_thread
 from .process import find_litellm_executable, start_litellm
 from .settings import ConfigurationError, load_env_file, load_gateway_config
 
@@ -239,6 +240,8 @@ def build_parser() -> argparse.ArgumentParser:
     ui.add_argument("--host", default="127.0.0.1")
     ui.add_argument("--port", type=int, default=4100)
     ui.add_argument("--no-browser", action="store_true")
+    ui.add_argument("--ollama-port", type=int, default=11434)
+    ui.add_argument("--no-ollama-bridge", action="store_true")
     return parser
 
 
@@ -261,8 +264,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "test":
             return _test(root, args.host, args.port, args.model)
         if args.command == "ui":
+            if not args.no_ollama_bridge:
+                start_ollama_bridge_thread(root, port=args.ollama_port)
             return run_dashboard(root, args.host, args.port, open_browser=not args.no_browser)
-    except (ConfigurationError, FileNotFoundError, ValueError) as exc:
+    except (ConfigurationError, FileNotFoundError, RuntimeError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 

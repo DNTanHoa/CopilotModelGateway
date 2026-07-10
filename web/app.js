@@ -63,7 +63,7 @@ function renderProfiles(profiles) {
     const modelTags = profile.models.map((model) => `<span class="tag">${escapeHtml(model.alias)}</span>`).join("");
     const input = keyName ? `
       <div class="key-form">
-        <input class="key-input" type="password" autocomplete="new-password" data-key-input="${escapeHtml(keyName)}" placeholder="${configured ? "Key configured — enter a new value to replace" : "Paste API key"}">
+        <input class="key-input" type="password" autocomplete="new-password" data-key-input="${escapeHtml(keyName)}" placeholder="${configured ? "Enter a new value to replace the saved key" : "Paste API key"}">
         <button class="button secondary small" data-save-key="${escapeHtml(keyName)}">Save</button>
         <button class="button danger small" data-clear-key="${escapeHtml(keyName)}">Clear</button>
       </div>` : "";
@@ -74,7 +74,7 @@ function renderProfiles(profiles) {
             <h3>${escapeHtml(profile.label)}</h3>
             <p class="muted">${escapeHtml(profile.id)}</p>
           </div>
-          <span class="badge ${configured ? "success" : "warning"}">${configured ? "Key set" : "Missing key"}</span>
+          <span class="badge ${configured ? "success" : "warning"}">${configured ? "Connected" : "Missing key"}</span>
         </div>
         <div class="model-tags">${modelTags}</div>
         ${input}
@@ -88,17 +88,16 @@ function renderProfiles(profiles) {
 function renderModels(aliases, online) {
   const grid = $("modelGrid");
   if (!aliases.length) {
-    grid.innerHTML = '<div class="empty">No active models. Add at least one provider API key above.</div>';
+    grid.innerHTML = '<tr><td colspan="4" class="empty">No active models. Add at least one provider API key above.</td></tr>';
     return;
   }
   grid.innerHTML = aliases.map((item) => `
-    <article class="model-card">
-      <h3>${escapeHtml(item.name)}</h3>
-      <div class="model-meta">
-        <span>${item.deployments} deployment${item.deployments === 1 ? "" : "s"}</span>
-        <button class="button secondary small" data-test-model="${escapeHtml(item.name)}" ${online ? "" : "disabled"}>Test model</button>
-      </div>
-    </article>`).join("");
+    <tr>
+      <td><span class="model-alias">${escapeHtml(item.name)}</span></td>
+      <td>${item.deployments} deployment${item.deployments === 1 ? "" : "s"}</td>
+      <td><span class="table-status ${online ? "online" : "offline"}">${online ? "Available" : "Gateway offline"}</span></td>
+      <td class="model-action"><button class="button secondary small" data-test-model="${escapeHtml(item.name)}" ${online ? "" : "disabled"}>Test</button></td>
+    </tr>`).join("");
   document.querySelectorAll("[data-test-model]").forEach((button) => button.addEventListener("click", () => testModel(button.dataset.testModel, button)));
 }
 
@@ -106,7 +105,7 @@ function render(status) {
   state.status = status;
   const gateway = status.gateway || {};
   const online = Boolean(gateway.online);
-  badge($("gatewayBadge"), online ? "Gateway online" : "Gateway offline", online ? "success" : "danger");
+  badge($("gatewayBadge"), online ? "Online" : "Offline", online ? "success" : "danger");
   badge($("authBadge"), gateway.auth_enabled ? "Auth enabled" : "Auth disabled", gateway.auth_enabled ? "success" : "warning");
   $("endpointText").textContent = gateway.url ? `${gateway.url}/v1` : "Not configured";
   $("vsEndpoint").textContent = gateway.url || "—";

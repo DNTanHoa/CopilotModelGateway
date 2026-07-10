@@ -1,4 +1,7 @@
-from copilot_model_gateway.generator import build_litellm_config
+from copilot_model_gateway.generator import (
+    _resolve_deepseek_provider_model,
+    build_litellm_config,
+)
 from copilot_model_gateway.settings import GatewayConfig, ModelConfig, ProfileConfig
 
 
@@ -67,3 +70,27 @@ def test_remote_bind_without_auth_is_rejected() -> None:
         assert "non-loopback" in str(exc)
     else:
         raise AssertionError("Expected unsafe bind to be rejected")
+
+
+def test_v4_flash_can_fallback_to_legacy_chat_alias() -> None:
+    resolved = _resolve_deepseek_provider_model(
+        "deepseek/deepseek-v4-flash",
+        {"deepseek-chat", "deepseek-reasoner"},
+    )
+    assert resolved == "deepseek/deepseek-chat"
+
+
+def test_v4_pro_is_not_mapped_to_legacy_reasoner() -> None:
+    resolved = _resolve_deepseek_provider_model(
+        "deepseek/deepseek-v4-pro",
+        {"deepseek-chat", "deepseek-reasoner"},
+    )
+    assert resolved is None
+
+
+def test_legacy_reasoner_maps_only_to_v4_flash() -> None:
+    resolved = _resolve_deepseek_provider_model(
+        "deepseek/deepseek-reasoner",
+        {"deepseek-v4-flash", "deepseek-v4-pro"},
+    )
+    assert resolved == "deepseek/deepseek-v4-flash"

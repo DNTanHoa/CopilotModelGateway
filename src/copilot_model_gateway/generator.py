@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import httpx
 import yaml
 
 from .settings import GatewayConfig
@@ -26,9 +27,69 @@ class RenderResult:
     warnings: tuple[str, ...]
 
 
+_DEEPSEEK_COMPATIBILITY_MODELS = {
+    "deepseek-v4-flash": "deepseek-chat",
+    "deepseek-v4-pro": "deepseek-reasoner",
+    "deepseek-chat": "deepseek-v4-flash",
+    "deepseek-reasoner": "deepseek-v4-pro",
+}
+
+
 def is_loopback_host(host: str) -> bool:
     normalized = host.strip().lower()
     return normalized in {"127.0.0.1", "localhost", "::1"}
+
+
+def _is_official_deepseek_profile(api_base: str | None) -> bool:
+    if not api_base:
+        return False
+    normalized = api_base.strip().lower().rstrip("/")
+    return normalized in {
+        "https://api.deepseek.com",
+        "https://api.deepseek.com/v1",
+    }
+
+
+def _deepseek_models_url(api_base: str) -> str:
+    normalized = api_base.strip().rstrip("/")
+    if normalized.lower().endswith("/v1"):
+        return f"{normalized}/models"
+    return f"{normalized}/v1/models"
+
+
+def _fetch_deepseek_model_ids(api_base: str, api_key: str) -> set[str]:
+    response = httpx.get(
+        _deepseek_models_url(api_base),
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=10.0,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    items = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        raise ValueError("DeepSeek /models returned an unexpected response")
+    return {
+        str(item.get("id", "")).strip()
+        for item in items
+        if isinstance(item, dict) and str(item.get("id", "")).strip()
+    }
+
+
+def _resolve_deepseek_provider_model(
+    provider_model: str,
+    available_models: set[str],
+) -> str | None:
+    if not provider_model.startswith("deepseek/"):
+        return provider_model
+
+    requested = provider_model.split("/", 1)[1]
+    if requested in available_models:
+        return provider_model
+
+    compatible = _DEEPSEEK_COMPATIBILITY_MODELS.get(requested)
+    if compatible and compatible in available_models:
+        return f"deepseek/{compatible}"
+    return None
 
 
 def build_litellm_config(
@@ -37,6 +98,7 @@ def build_litellm_config(
     *,
     host_override: str | None = None,
     port_override: int | None = None,
+    resolve_provider_models: bool = False,
 ) -> tuple[dict[str, Any], tuple[Deployment, ...], tuple[str, ...]]:
     host = host_override or config.host
     _ = port_override or config.port
@@ -63,12 +125,53 @@ def build_litellm_config(
                 )
                 continue
 
+        available_deepseek_models: set[str] | None = None
+        if (
+            resolve_provider_models
+            and api_key
+            and _is_official_deepseek_profile(profile.api_base)
+        ):
+            try:
+                available_deepseek_models = _fetch_deepseek_model_ids(
+                    profile.api_base or "https://api.deepseek.com",
+                    api_key,
+                )
+                if not available_deepseek_models:
+                    warnings.append(
+                        f"DeepSeek profile '{profile.id}' returned no available models"
+                    )
+            except (httpx.HTTPError, ValueError) as exc:
+                warnings.append(
+                    f"Could not discover DeepSeek models for profile '{profile.id}': {exc}. "
+                    "Using configured model IDs."
+                )
+
         for model in profile.models:
             if not model.enabled:
                 continue
 
+            provider_model = model.model
+            if available_deepseek_models is not None:
+                resolved_model = _resolve_deepseek_provider_model(
+                    provider_model,
+                    available_deepseek_models,
+                )
+                if resolved_model is None:
+                    requested = provider_model.split("/", 1)[-1]
+                    warnings.append(
+                        f"Skipping model alias '{model.alias}' for profile '{profile.id}': "
+                        f"DeepSeek model '{requested}' is not available for this API key"
+                    )
+                    continue
+                if resolved_model != provider_model:
+                    warnings.append(
+                        f"DeepSeek profile '{profile.id}': alias '{model.alias}' mapped "
+                        f"from '{provider_model}' to compatible model '{resolved_model}'"
+                    )
+                    provider_model = resolved_model
+
             litellm_params: dict[str, Any] = {
-                "model": model.model,
+                "model": provider_model,
                 "timeout": config.request_timeout_seconds,
             }
             if api_key:
@@ -93,7 +196,7 @@ def build_litellm_config(
                     alias=model.alias,
                     profile_id=profile.id,
                     profile_label=profile.label,
-                    provider_model=model.model,
+                    provider_model=provider_model,
                 )
             )
 
@@ -131,6 +234,7 @@ def render_runtime_config(
         env,
         host_override=host_override,
         port_override=port_override,
+        resolve_provider_models=True,
     )
     if not deployments:
         raise ValueError("No active deployments. Add at least one provider API key.")

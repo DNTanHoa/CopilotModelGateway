@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("setup", "init", "doctor", "models", "render", "start", "test")]
+    [ValidateSet("setup", "init", "doctor", "models", "render", "start", "test", "ui")]
     [string]$Command = "doctor",
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -19,7 +19,7 @@ if ($Command -eq "setup") {
 }
 
 if (-not (Test-Path -LiteralPath $Python)) {
-    throw "Virtual environment not found. Run: .\gateway.ps1 setup"
+    throw "Virtual environment not found. Run: .\gateway.bat setup"
 }
 
 Push-Location $Root

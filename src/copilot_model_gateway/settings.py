@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import yaml
 
@@ -77,6 +79,41 @@ def load_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+def update_env_file(path: Path, updates: Mapping[str, str]) -> None:
+    """Update selected .env keys atomically while preserving comments and ordering."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    original = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    remaining = dict(updates)
+    output: list[str] = []
+    for raw_line in original:
+        stripped = raw_line.strip()
+        if stripped and not stripped.startswith("#") and "=" in raw_line:
+            key = raw_line.split("=", 1)[0].strip()
+            if key in remaining:
+                output.append(f"{key}={remaining.pop(key)}")
+                continue
+        output.append(raw_line)
+    if remaining:
+        if output and output[-1].strip():
+            output.append("")
+        output.extend(f"{key}={value}" for key, value in remaining.items())
+
+    content = "\n".join(output).rstrip("\n") + "\n"
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent, text=True)
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(content)
+        os.replace(temp_path, path)
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
 def _required_text(mapping: dict[str, Any], key: str, context: str) -> str:
     value = mapping.get(key)
     if not isinstance(value, str) or not value.strip():
@@ -144,9 +181,7 @@ def load_gateway_config(path: Path) -> GatewayConfig:
             provider_model = _required_text(raw_model, "model", model_context)
             model_enabled = parse_bool(raw_model.get("enabled"), default=True)
             model_api_base_value = raw_model.get("api_base")
-            model_api_base = (
-                str(model_api_base_value).strip() if model_api_base_value else None
-            )
+            model_api_base = str(model_api_base_value).strip() if model_api_base_value else None
             params = raw_model.get("params") or {}
             if not isinstance(params, dict):
                 raise ConfigurationError(f"{model_context}.params must be a mapping")

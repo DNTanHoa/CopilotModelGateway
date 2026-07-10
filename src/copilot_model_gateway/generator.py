@@ -27,11 +27,13 @@ class RenderResult:
     warnings: tuple[str, ...]
 
 
-_DEEPSEEK_COMPATIBILITY_MODELS = {
-    "deepseek-v4-flash": "deepseek-chat",
-    "deepseek-v4-pro": "deepseek-reasoner",
-    "deepseek-chat": "deepseek-v4-flash",
-    "deepseek-reasoner": "deepseek-v4-pro",
+# DeepSeek documents the legacy names as compatibility aliases for V4 Flash:
+# deepseek-chat = non-thinking mode, deepseek-reasoner = thinking mode.
+# V4 Pro does not have a documented legacy compatibility alias.
+_DEEPSEEK_COMPATIBILITY_MODELS: dict[str, tuple[str, ...]] = {
+    "deepseek-v4-flash": ("deepseek-chat", "deepseek-reasoner"),
+    "deepseek-chat": ("deepseek-v4-flash",),
+    "deepseek-reasoner": ("deepseek-v4-flash",),
 }
 
 
@@ -86,9 +88,9 @@ def _resolve_deepseek_provider_model(
     if requested in available_models:
         return provider_model
 
-    compatible = _DEEPSEEK_COMPATIBILITY_MODELS.get(requested)
-    if compatible and compatible in available_models:
-        return f"deepseek/{compatible}"
+    for compatible in _DEEPSEEK_COMPATIBILITY_MODELS.get(requested, ()):
+        if compatible in available_models:
+            return f"deepseek/{compatible}"
     return None
 
 

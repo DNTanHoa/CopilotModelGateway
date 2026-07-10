@@ -9,6 +9,7 @@ from collections import Counter
 from pathlib import Path
 
 from .client import list_models, test_model
+from .dashboard import run_dashboard
 from .generator import build_litellm_config, render_runtime_config
 from .process import find_litellm_executable, start_litellm
 from .settings import ConfigurationError, load_env_file, load_gateway_config
@@ -93,10 +94,7 @@ def _doctor(root: Path, host: str | None, port: int | None, skip_runtime: bool) 
     print(f"  Auth   : {'enabled' if config.require_auth else 'disabled'}")
 
     rendered, deployments, warnings = build_litellm_config(
-        config,
-        env,
-        host_override=effective_host,
-        port_override=effective_port,
+        config, env, host_override=effective_host, port_override=effective_port
     )
     _ = rendered
     for warning in warnings:
@@ -144,13 +142,7 @@ def _models(root: Path) -> int:
 
 def _render(root: Path, host: str | None, port: int | None) -> int:
     config, env, runtime_path = _load(root)
-    result = render_runtime_config(
-        config,
-        env,
-        runtime_path,
-        host_override=host,
-        port_override=port,
-    )
+    result = render_runtime_config(config, env, runtime_path, host_override=host, port_override=port)
     for warning in result.warnings:
         print(f"WARN: {warning}")
     print(f"Generated {result.path}")
@@ -163,11 +155,7 @@ def _start(root: Path, host: str | None, port: int | None) -> int:
     effective_host = host or config.host
     effective_port = port or config.port
     result = render_runtime_config(
-        config,
-        env,
-        runtime_path,
-        host_override=effective_host,
-        port_override=effective_port,
+        config, env, runtime_path, host_override=effective_host, port_override=effective_port
     )
     for warning in result.warnings:
         print(f"WARN: {warning}")
@@ -240,6 +228,11 @@ def build_parser() -> argparse.ArgumentParser:
     test.add_argument("--host")
     test.add_argument("--port", type=int)
     test.add_argument("--model")
+
+    ui = subparsers.add_parser("ui", help="Open the local management dashboard")
+    ui.add_argument("--host", default="127.0.0.1")
+    ui.add_argument("--port", type=int, default=4100)
+    ui.add_argument("--no-browser", action="store_true")
     return parser
 
 
@@ -261,6 +254,8 @@ def main(argv: list[str] | None = None) -> int:
             return _start(root, args.host, args.port)
         if args.command == "test":
             return _test(root, args.host, args.port, args.model)
+        if args.command == "ui":
+            return run_dashboard(root, args.host, args.port, open_browser=not args.no_browser)
     except (ConfigurationError, FileNotFoundError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

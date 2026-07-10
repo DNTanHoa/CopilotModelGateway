@@ -142,7 +142,13 @@ def _models(root: Path) -> int:
 
 def _render(root: Path, host: str | None, port: int | None) -> int:
     config, env, runtime_path = _load(root)
-    result = render_runtime_config(config, env, runtime_path, host_override=host, port_override=port)
+    result = render_runtime_config(
+        config,
+        env,
+        runtime_path,
+        host_override=host,
+        port_override=port,
+    )
     for warning in result.warnings:
         print(f"WARN: {warning}")
     print(f"Generated {result.path}")

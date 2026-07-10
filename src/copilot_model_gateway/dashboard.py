@@ -7,7 +7,7 @@ import time
 import webbrowser
 from collections import Counter, deque
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
@@ -304,7 +304,7 @@ def create_dashboard_app(root: Path) -> FastAPI:
         }
 
     @app.get("/api/logs")
-    def logs(lines: int = Query(default=160, ge=20, le=1000)) -> dict[str, str]:
+    def logs(lines: Annotated[int, Query(ge=20, le=1000)] = 160) -> dict[str, str]:
         return {"text": _tail_text(state.log_path, lines)}
 
     return app

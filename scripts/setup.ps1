@@ -21,7 +21,7 @@ if (-not (Test-Path -LiteralPath $Python)) {
 Write-Host "Upgrading packaging tools..." -ForegroundColor Yellow
 & $Python -m pip install --upgrade pip setuptools wheel
 
-Write-Host "Installing gateway and development tools..." -ForegroundColor Yellow
+Write-Host "Installing gateway, dashboard and development tools..." -ForegroundColor Yellow
 & $Python -m pip install -e "$Root[dev]"
 
 Push-Location $Root
@@ -35,4 +35,4 @@ finally {
 
 Write-Host ""
 Write-Host "Setup completed." -ForegroundColor Green
-Write-Host "Next: edit .env and config\gateway.yaml, then run .\gateway.ps1 start"
+Write-Host "Next: run .\gateway.bat ui to configure keys and start the gateway."

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "copilot-model-gateway"
-version = "0.2.0"
-description = "Secure local multi-provider model gateway with a local dashboard for GitHub Copilot BYOM clients"
+version = "0.3.0"
+description = "Secure local multi-provider model gateway with dashboard and Ollama compatibility for GitHub Copilot BYOM clients"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -14,6 +14,7 @@ dependencies = [
   "PyYAML>=6.0.1",
   "fastapi>=0.115,<1",
   "uvicorn>=0.30,<1",
+  "httpx>=0.27,<1",
   "litellm[proxy]>=1.90.0,<2",
   "prisma>=0.11.0,<1.0"
 ]
@@ -21,7 +22,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
-  "httpx>=0.27",
   "ruff>=0.9"
 ]
 

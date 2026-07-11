@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "copilot-model-gateway"
-version = "0.3.0"
-description = "Secure local multi-provider model gateway with dashboard and Ollama compatibility for GitHub Copilot BYOM clients"
+version = "0.4.0"
+description = "Secure local multi-provider model gateway with dashboard, quota checks and Visual Studio compatibility"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

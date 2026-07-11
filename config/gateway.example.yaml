@@ -47,6 +47,35 @@ profiles:
         model: gemini/gemini-3.1-flash-lite
         enabled: true
 
+  - id: minimax-primary
+    label: MiniMax API
+    enabled: true
+    api_key_env: MINIMAX_API_KEY_1
+    api_base: https://api.minimax.io/v1
+    models:
+      - alias: minimax-m3
+        model: openai/MiniMax-M3
+        enabled: true
+      - alias: minimax-m2.7-highspeed
+        model: openai/MiniMax-M2.7-highspeed
+        enabled: true
+
+  - id: kimi-primary
+    label: Kimi API
+    enabled: true
+    api_key_env: KIMI_API_KEY_1
+    api_base: https://api.moonshot.ai/v1
+    models:
+      - alias: kimi-k2.7-code
+        model: openai/kimi-k2.7-code
+        enabled: true
+      - alias: kimi-k2.7-code-highspeed
+        model: openai/kimi-k2.7-code-highspeed
+        enabled: true
+      - alias: kimi-k2.6
+        model: openai/kimi-k2.6
+        enabled: true
+
   - id: openai-primary
     label: OpenAI
     enabled: true

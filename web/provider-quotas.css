@@ -1,8 +1,47 @@
+.quota-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(90px, 1fr));
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.quota-summary-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 7px 9px;
+  background: var(--surface-subtle);
+}
+
+.quota-summary-item span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.quota-summary-item strong {
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.quota-summary-item.success strong { color: var(--success); }
+.quota-summary-item.warning strong { color: var(--warning); }
+.quota-summary-item.danger strong { color: var(--danger); }
+
+.quota-threshold {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: right;
+}
+
 .quota-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .quota-card {
@@ -10,6 +49,17 @@
   border-radius: var(--radius);
   padding: 12px;
   background: var(--surface-subtle);
+}
+
+.quota-card.low {
+  border-color: #ead8a3;
+  background: var(--warning-bg);
+}
+
+.quota-card.unavailable,
+.quota-card.error {
+  border-color: #ebc1c1;
+  background: var(--danger-bg);
 }
 
 .quota-card-top {
@@ -75,9 +125,15 @@
 #quotaCheckedAt {
   color: var(--muted);
   font-size: 11px;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .quota-summary-strip { grid-template-columns: repeat(3, minmax(90px, 1fr)); }
+  .quota-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {
-  .quota-grid { grid-template-columns: 1fr; }
+  .quota-summary-strip { grid-template-columns: repeat(2, minmax(90px, 1fr)); }
   .quota-heading-meta { align-items: flex-end; flex-direction: column; }
 }

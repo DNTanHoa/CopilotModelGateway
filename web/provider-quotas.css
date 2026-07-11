@@ -1,0 +1,83 @@
+.quota-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quota-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: var(--surface-subtle);
+}
+
+.quota-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quota-card h3,
+.quota-card p {
+  margin-bottom: 0;
+}
+
+.quota-summary {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.quota-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.quota-metric {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 9px;
+  background: var(--surface);
+}
+
+.quota-metric span,
+.quota-metric small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.quota-metric strong {
+  display: block;
+  margin: 2px 0;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.quota-note {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.quota-heading-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#quotaCheckedAt {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .quota-grid { grid-template-columns: 1fr; }
+  .quota-heading-meta { align-items: flex-end; flex-direction: column; }
+}

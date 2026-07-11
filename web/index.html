@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Copilot Model Gateway</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=win11-4">
-  <link rel="stylesheet" href="/assets/alerts.css?v=win11-4">
-  <link rel="stylesheet" href="/assets/provider-quotas.css?v=win11-4">
+  <link rel="stylesheet" href="/assets/styles.css?v=win11-5">
+  <link rel="stylesheet" href="/assets/alerts.css?v=win11-5">
+  <link rel="stylesheet" href="/assets/provider-quotas.css?v=win11-5">
 </head>
 <body>
   <div class="shell">
@@ -110,13 +110,14 @@
           <div>
             <p class="label">Provider health</p>
             <h2>Balance and quota</h2>
-            <p class="muted">Live balances are shown only where the provider exposes an API. Other cards show model access or the required console.</p>
+            <p class="muted">Live balances are shown where supported. Other providers show key/model access or the console required to inspect quota.</p>
           </div>
           <div class="quota-heading-meta">
             <span id="quotaCheckedAt"></span>
             <button id="quotaRefreshButton" class="button secondary small">Refresh quota</button>
           </div>
         </div>
+        <div id="quotaSummary" class="quota-summary-strip" aria-live="polite"></div>
         <div id="quotaGrid" class="quota-grid">
           <div class="empty">Quota has not been checked yet.</div>
         </div>
@@ -158,9 +159,9 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/assets/app.js?v=win11-4" defer></script>
-  <script src="/assets/alerts.js?v=win11-4" defer></script>
-  <script src="/assets/gateway-controls.js?v=win11-4" defer></script>
-  <script src="/assets/provider-quotas.js?v=win11-4" defer></script>
+  <script src="/assets/app.js?v=win11-5" defer></script>
+  <script src="/assets/alerts.js?v=win11-5" defer></script>
+  <script src="/assets/gateway-controls.js?v=win11-5" defer></script>
+  <script src="/assets/provider-quotas.js?v=win11-5" defer></script>
 </body>
 </html>

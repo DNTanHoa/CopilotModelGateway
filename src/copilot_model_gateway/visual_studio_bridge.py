@@ -34,6 +34,20 @@ def _openai_model_record(model: str) -> dict[str, Any]:
     }
 
 
+def _normalize_provider_payload(payload: dict[str, Any], model: str) -> None:
+    """Apply provider constraints that Visual Studio cannot configure itself."""
+
+    if model.startswith("kimi-k2.7-code"):
+        payload["temperature"] = 1.0
+        payload["top_p"] = 0.95
+        payload["n"] = 1
+        payload["presence_penalty"] = 0.0
+        payload["frequency_penalty"] = 0.0
+        tool_choice = payload.get("tool_choice")
+        if tool_choice not in {None, "auto", "none"}:
+            payload["tool_choice"] = "auto"
+
+
 def create_visual_studio_bridge_app(root: Path) -> FastAPI:
     """Extend the Ollama bridge with the OpenAI chat routes used by Visual Studio."""
 
@@ -74,6 +88,7 @@ def create_visual_studio_bridge_app(root: Path) -> FastAPI:
                 )
 
             payload["model"] = model
+            _normalize_provider_payload(payload, model)
             headers = {"Content-Type": "application/json"}
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
